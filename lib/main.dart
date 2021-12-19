@@ -1,36 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-//import 'package:flutter_map/plugin_api.dart';
 import 'package:flutter_map/flutter_map.dart';
+
 import 'package:latlong2/latlong.dart';
-// import 'package:maps/pages/animated_map_controller.dart';
-// import 'package:maps/pages/circle.dart';
-// import 'package:maps/pages/custom_crs/custom_crs.dart';
-// import 'package:maps/pages/esri.dart';
-// import 'package:maps/pages/home.dart';
-// import 'package:maps/pages/interactive_test_page.dart';
-// import 'package:maps/pages/live_location.dart';
-// import 'package:maps/pages/many_markers.dart';
-// import 'package:maps/pages/map_controller.dart';
-// import 'package:maps/pages/map_inside_listview.dart';
-// import 'package:maps/pages/marker_anchor.dart';
-// import 'package:maps/pages/marker_rotate.dart';
-// import 'package:maps/pages/moving_markers.dart';
-// import 'package:maps/pages/network_tile_provider.dart';
-// import 'package:maps/pages/offline_map.dart';
-// import 'package:maps/pages/on_tap.dart';
-// import 'package:maps/pages/overlay_image.dart';
-// import 'package:maps/pages/plugin_api.dart';
-// import 'package:maps/pages/plugin_scalebar.dart';
-// import 'package:maps/pages/plugin_zoombuttons.dart';
-// import 'package:maps/pages/polyline.dart';
-// import 'package:maps/pages/reset_tile_layer.dart';
-// import 'package:maps/pages/sliding_map.dart';
-// import 'package:maps/pages/stateful_markers.dart';
-// import 'package:maps/pages/tap_to_add.dart';
-// import 'package:maps/pages/tile_builder_example.dart';
-// import 'package:maps/pages/tile_loading_error_handle.dart';
-// import 'package:maps/pages/widgets.dart';
-// import 'package:maps/pages/wms_tile_layer.dart';
+import 'package:maps/map.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(App());
 
@@ -39,112 +14,159 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Home(),
+    return const MaterialApp(
+      home: HomePage(),
     );
   }
 }
 
-class Home extends StatelessWidget {
-  const Home({Key? key}) : super(key: key);
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  TextEditingController latController = TextEditingController(text: "56.1325");
+  TextEditingController lngController = TextEditingController(text: "101.614");
+  TextEditingController zoomMin = TextEditingController(text: "8");
+  TextEditingController zoomMax = TextEditingController(text: "10");
+  TextEditingController radiusController = TextEditingController(text: "10");
+  List<int> zooms = [1, 2, 3, 4, 5];
+  DownloadTileHalper? tiles;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: FlutterMap(
-      options: MapOptions(
-        center: LatLng(56.1325, 101.614),
-        zoom: 13.0,
-      ),
-      layers: [
-        TileLayerOptions(
-          urlTemplate: "http://127.0.0.1:8000/services/world/tiles/{z}/{x}/{y}.png",
-          //subdomains: ['a', 'b', 'c'],
-          attributionBuilder: (_) {
-            return Text("© maxnemoy map");
-          },
+        body: Column(
+      children: [
+        TextField(
+          controller: latController,
+          decoration: const InputDecoration(label: Text("LTD")),
         ),
-        MarkerLayerOptions(
-          markers: [
-            Marker(
-              width: 10.0,
-              height: 10.0,
-              point: LatLng(56.1325, 101.614),
-              builder: (ctx) => Container(
-                
-                child: Container(width: 1, height: 1, color: Colors.red,),
-              ),
-            ),
-          ],
+        TextField(
+          controller: lngController,
+          decoration: const InputDecoration(label: Text("LNG")),
         ),
+        TextField(
+          controller: radiusController,
+          decoration: const InputDecoration(label: Text("R")),
+        ),
+        TextField(
+          controller: zoomMin,
+          decoration: const InputDecoration(label: Text("Zoom min")),
+        ),
+        TextField(
+          controller: zoomMax,
+          decoration: const InputDecoration(label: Text("Zoom Max")),
+        ),
+        ElevatedButton(
+            onPressed: () {
+              tiles = DownloadTileHalper(
+                  lat: double.parse(latController.text),
+                  lng: double.parse(lngController.text),
+                  rad: double.parse(radiusController.text),
+                  zoomMin: int.parse(zoomMin.text),
+                  zoomMax: int.parse(zoomMax.text)
+                  );
+              tiles!.getMap();
+            },
+            child: const Text("Download Tiles")),
+        ElevatedButton(
+            onPressed: () {
+              tiles = DownloadTileHalper(
+                  lat: double.parse(latController.text),
+                  lng: double.parse(lngController.text),
+                  rad: double.parse(radiusController.text),
+                  zoomMin: int.parse(zoomMin.text),
+                  zoomMax: int.parse(zoomMax.text)
+                  );
+              List<String> list = tiles!.getTilesAddress();
+              print(list);
+            },
+            child: const Text("Get all tiles")),
+        ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const MapView()));
+            },
+            child: const Text("Show map from download folder"))
       ],
     ));
   }
 }
 
+class MapView extends StatefulWidget {
+  const MapView({Key? key}) : super(key: key);
 
+  @override
+  State<MapView> createState() => _MapViewState();
+}
 
-// class MyApp extends StatelessWidget {
-//   // This widget is the root of your application.
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       title: 'Flutter Map Example',
-//       theme: ThemeData(
-//         primarySwatch: mapBoxBlue,
-//       ),
-//       home: HomePage(),
-//       routes: <String, WidgetBuilder>{
-//         NetworkTileProviderPage.route: (context) => NetworkTileProviderPage(),
-//         WidgetsPage.route: (context) => WidgetsPage(),
-//         TapToAddPage.route: (context) => TapToAddPage(),
-//         EsriPage.route: (context) => EsriPage(),
-//         PolylinePage.route: (context) => PolylinePage(),
-//         MapControllerPage.route: (context) => MapControllerPage(),
-//         AnimatedMapControllerPage.route: (context) =>
-//             AnimatedMapControllerPage(),
-//         MarkerAnchorPage.route: (context) => MarkerAnchorPage(),
-//         PluginPage.route: (context) => PluginPage(),
-//         PluginScaleBar.route: (context) => PluginScaleBar(),
-//         PluginZoomButtons.route: (context) => PluginZoomButtons(),
-//         OfflineMapPage.route: (context) => OfflineMapPage(),
-//         OnTapPage.route: (context) => OnTapPage(),
-//         MarkerRotatePage.route: (context) => MarkerRotatePage(),
-//         MovingMarkersPage.route: (context) => MovingMarkersPage(),
-//         CirclePage.route: (context) => CirclePage(),
-//         OverlayImagePage.route: (context) => OverlayImagePage(),
-//         SlidingMapPage.route: (_) => SlidingMapPage(),
-//         WMSLayerPage.route: (context) => WMSLayerPage(),
-//         CustomCrsPage.route: (context) => CustomCrsPage(),
-//         LiveLocationPage.route: (context) => LiveLocationPage(),
-//         TileLoadingErrorHandle.route: (context) => TileLoadingErrorHandle(),
-//         TileBuilderPage.route: (context) => TileBuilderPage(),
-//         InteractiveTestPage.route: (context) => InteractiveTestPage(),
-//         ManyMarkersPage.route: (context) => ManyMarkersPage(),
-//         StatefulMarkersPage.route: (context) => StatefulMarkersPage(),
-//         MapInsideListViewPage.route: (context) => MapInsideListViewPage(),
-//         ResetTileLayerPage.route: (context) => ResetTileLayerPage(),
-//       },
-//     );
-//   }
-// }
+class _MapViewState extends State<MapView> {
+  bool mapFromCache = true;
+  late String source;
 
-// // Generated using Material Design Palette/Theme Generator
-// // http://mcg.mbitson.com/
-// // https://github.com/mbitson/mcg
-// const int _bluePrimary = 0xFF395afa;
-// const MaterialColor mapBoxBlue = MaterialColor(
-//   _bluePrimary,
-//   <int, Color>{
-//     50: Color(0xFFE7EBFE),
-//     100: Color(0xFFC4CEFE),
-//     200: Color(0xFF9CADFD),
-//     300: Color(0xFF748CFC),
-//     400: Color(0xFF5773FB),
-//     500: Color(_bluePrimary),
-//     600: Color(0xFF3352F9),
-//     700: Color(0xFF2C48F9),
-//     800: Color(0xFF243FF8),
-//     900: Color(0xFF172EF6),
-//   },
-// );
+  @override
+  void initState() {
+    getDownloadsDirectory().then((value) {
+      setState(() {
+        source = "${value!.path}\\_\\mainStore";
+        print("SOURCE: $source");
+      });
+    });
+
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(
+          title: mapFromCache
+              ? const Text("Map from Provider")
+              : const Text("Map from Cache"),
+          actions: [
+            Switch(
+                value: mapFromCache,
+                onChanged: (v) {
+                  setState(() {
+                    mapFromCache = v;
+                  });
+                })
+          ],
+        ),
+        body: FlutterMap(
+            options: MapOptions(
+              center: LatLng(56.1325, 101.614),
+            ),
+            layers: [
+              TileLayerOptions(
+                  urlTemplate: mapFromCache || source == null
+                      ? 'http://127.0.0.1:8000/services/world/tiles/{z}/{x}/{y}.png'
+                      : source + "\\{z}\\{x}\\{y}.png",
+                  tileProvider: mapFromCache ? ExteralTail() : InternalTail())
+            ]));
+  }
+}
+
+class InternalTail extends TileProvider {
+  @override
+  ImageProvider<Object> getImage(Coords<num> coords, TileLayerOptions options) {
+    if (File(getTileUrl(coords, options)).existsSync()) {
+      return FileImage(File(getTileUrl(coords, options)));
+    } else {
+      return const AssetImage("assets/blank_tile.png");
+    }
+  }
+}
+
+class ExteralTail extends TileProvider {
+  @override
+  ImageProvider<Object> getImage(Coords<num> coords, TileLayerOptions options) {
+    print(options.urlTemplate);
+    return NetworkImage(getTileUrl(coords, options));
+    //return ImageProvider ;
+  }
+}
