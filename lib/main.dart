@@ -92,12 +92,6 @@ class _HomePageState extends State<HomePage> {
               });
             },
             child: const Text("Get all tiles")),
-        ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const MapView()));
-            },
-            child: const Text("Show map from download folder")),
         Expanded(
           child: Row(
             children: [
@@ -136,77 +130,5 @@ class _HomePageState extends State<HomePage> {
         )
       ],
     ));
-  }
-}
-
-class MapView extends StatefulWidget {
-  const MapView({Key? key}) : super(key: key);
-
-  @override
-  State<MapView> createState() => _MapViewState();
-}
-
-class _MapViewState extends State<MapView> {
-  bool mapFromCache = true;
-  late String source;
-
-  @override
-  void initState() {
-    getDownloadsDirectory().then((value) {
-      setState(() {
-        source = "${value!.path}\\_";
-        print("SOURCE: $source");
-      });
-    });
-
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          title: mapFromCache
-              ? const Text("Map from Provider")
-              : const Text("Map from Cache"),
-          actions: [
-            Switch(
-                value: mapFromCache,
-                onChanged: (v) {
-                  setState(() {
-                    mapFromCache = v;
-                  });
-                })
-          ],
-        ),
-        body: FlutterMap(
-            options: MapOptions(
-              center: LatLng(56.1325, 101.614),
-            ),
-            layers: [
-              TileLayerOptions(
-                  urlTemplate: mapFromCache || source == null
-                      ? 'http://127.0.0.1:8000/services/world/tiles/{z}/{x}/{y}.png'
-                      : source + "\\{z}\\{x}\\{y}.png",
-                  tileProvider: mapFromCache ? ExteralTail() : InternalTail())
-            ]));
-  }
-}
-
-class InternalTail extends TileProvider {
-  @override
-  ImageProvider<Object> getImage(Coords<num> coords, TileLayerOptions options) {
-    if (File(getTileUrl(coords, options)).existsSync()) {
-      return FileImage(File(getTileUrl(coords, options)));
-    } else {
-      return const AssetImage("assets/blank_tile.png");
-    }
-  }
-}
-
-class ExteralTail extends TileProvider {
-  @override
-  ImageProvider<Object> getImage(Coords<num> coords, TileLayerOptions options) {
-    return NetworkImage(getTileUrl(coords, options));
   }
 }
