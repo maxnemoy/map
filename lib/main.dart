@@ -112,6 +112,23 @@ class _HomePageState extends State<HomePage> {
                   MaterialPageRoute(builder: (context) => const MapView()));
             },
             child: const Text("Show map from download folder")),
+            ElevatedButton(
+            onPressed: () {
+              tiles = DownloadTileHalper(
+                  options: DownloadTileOptions(
+                      southWest: LatLng(56.09962, 101.506805),
+                      northEast: LatLng(56.206704, 101.729279) 
+                      ),
+                      // tileLayerOptions: TileLayerOptions(
+                      //                       urlTemplate:"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      //                       subdomains: ['a', 'b', 'c'],
+                      //                       attributionBuilder: (_) {
+                      //                         return Text("© OpenStreetMap contributors");
+                      //                       })
+                        );
+              tiles!.downloadMap();
+            },
+            child: const Text("Get all tiles from sw/ne")),
         Expanded(
           child: Row(
             children: [
