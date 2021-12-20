@@ -1,12 +1,8 @@
-import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:http/http.dart' as http;
-import 'package:location/location.dart';
-import 'package:path_provider/path_provider.dart';
+
 
 class DownloadTileOptions {
   /// Center point Latitude
@@ -71,12 +67,6 @@ class DownloadTileHalper {
                   "http://127.0.0.1:8000/services/world/tiles/{z}/{x}/{y}.png",
             );
 
-  void downloadMap() {
-    List<Coords> coords = _getCoordinats();
-    for (Coords element in coords) {
-      _getAndSaveTile(element, _tileLayerOptions, http.Client(), (e, s) {});
-    }
-  }
 
   List<TileInfo> get getTilesAddress => _getCoordinats().map<TileInfo>((element) {
       List<String> address = _getTileUrl(element, _tileLayerOptions).split("/");
@@ -143,25 +133,6 @@ class DownloadTileHalper {
     return getTileUrl(coordDouble, options);
   }
 
-  Future<void> _getAndSaveTile(Coords<num> coord, TileLayerOptions options,
-      http.Client client, Function(String, dynamic) errorHandler) async {
-    String url = "";
-    try {
-      final coordDouble = Coords(coord.x.toDouble(), coord.y.toDouble())
-        ..z = coord.z.toDouble();
-      url = getTileUrl(coordDouble, options);
-      final bytes = (await client.get(Uri.parse(url))).bodyBytes;
-
-      await saveTile(
-        bytes,
-        coord,
-        cacheName: url,
-      );
-    } catch (e) {
-      errorHandler(url, e);
-    }
-  }
-
   String getTileUrl(Coords coords, TileLayerOptions options) {
     var urlTemplate = (options.wmsOptions != null)
         ? options.wmsOptions!
@@ -206,23 +177,6 @@ class DownloadTileHalper {
     }
 
     return zoom += options.zoomOffset;
-  }
-
-  static Future<void> saveTile(Uint8List tile, Coords coords,
-      {String cacheName = 'mainCache'}) async {
-    final directory = await getDownloadsDirectory();
-    Uri u = Uri.parse(cacheName);
-    var l = u.pathSegments.length;
-    String zoom = u.pathSegments[l - 3];
-    String x = u.pathSegments[l - 2];
-    String y = u.pathSegments[l - 1];
-
-    Directory zoomDir =
-        Directory("${directory!.path}\\_\\$zoom\\$x");
-    await zoomDir.create(recursive: true);
-
-    File file = File("${directory.path}\\_\\$zoom\\$x\\$y");
-    file.writeAsBytes(tile);
   }
 }
 

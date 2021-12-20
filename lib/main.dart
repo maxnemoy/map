@@ -79,20 +79,6 @@ class _HomePageState extends State<HomePage> {
                       heigth: double.parse(heigthController.text),
                       zoomMin: int.parse(zoomMin.text),
                       zoomMax: int.parse(zoomMax.text)),
-                  );
-              tiles!.downloadMap();
-            },
-            child: const Text("Download Tiles")),
-        ElevatedButton(
-            onPressed: () {
-              tiles = DownloadTileHalper(
-                  options: DownloadTileOptions(
-                      lat: double.parse(latController.text),
-                      lng: double.parse(lngController.text),
-                      width: double.parse(widthController.text),
-                      heigth: double.parse(heigthController.text),
-                      zoomMin: int.parse(zoomMin.text),
-                      zoomMax: int.parse(zoomMax.text)),
                       tileLayerOptions: TileLayerOptions(
                                             urlTemplate:"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                                             subdomains: ['a', 'b', 'c'],
