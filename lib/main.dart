@@ -91,7 +91,27 @@ class _HomePageState extends State<HomePage> {
                 tilesList = tiles!.getTilesAddress;
               });
             },
-            child: const Text("Get all tiles")),
+            child: const Text("Get all tiles from center/h/w")),
+                        ElevatedButton(
+            onPressed: () {
+              tiles = DownloadTileHalper(
+                  options: DownloadTileOptions(
+                      southWest: LatLng(56.09962, 101.506805),
+                      northEast: LatLng(56.206704, 101.729279) 
+                      ),
+                      // tileLayerOptions: TileLayerOptions(
+                      //                       urlTemplate:"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      //                       subdomains: ['a', 'b', 'c'],
+                      //                       attributionBuilder: (_) {
+                      //                         return Text("© OpenStreetMap contributors");
+                      //                       })
+                        );
+              setState(() {
+                urlsList = tiles!.getTilesUrls;
+                tilesList = tiles!.getTilesAddress;
+              });
+            },
+            child: const Text("Get all tiles from sw/ne")),
         Expanded(
           child: Row(
             children: [
