@@ -5,83 +5,112 @@ import 'dart:typed_data';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
+import 'package:location/location.dart';
 import 'package:path_provider/path_provider.dart';
 
-class DownloadTileHalper {
-  final double lat;
-  final double lng;
-  final double rad;
+class DownloadTileOptions {
+  /// Center point Latitude
+  final double? lat;
+
+  /// Center poit Longitude
+  final double? lng;
+
+  /// Area widht(km)
+  final double? width;
+
+  /// Area heigth(km)
+  final double? heigth;
+
+  /// Minimum zoom
   final int zoomMin;
+
+  /// Maximum Zoom
   final int zoomMax;
-  final String urlTemplate;
+
+  /// Tile size (default 256)
   final int tileSize;
 
-  DownloadTileHalper(
-      {required this.lat,
-      required this.lng,
-      required this.rad,
-      this.zoomMin = 5,
+  /// South-West area point
+  final LatLng? southWest;
+
+  /// North-East area point
+  final LatLng? northEast;
+
+  late RectangleRegion region;
+
+  DownloadTileOptions(
+      {this.lat,
+      this.lng,
+      this.width,
+      this.heigth,
+      this.zoomMin = 9,
       this.zoomMax = 10,
       this.tileSize = 256,
-      this.urlTemplate =
-          "http://127.0.0.1:8000/services/world/tiles/{z}/{x}/{y}.png"});
+      this.southWest,
+      this.northEast}){
+        if(lat == null && lng == null){
+          region = RectangleRegion(LatLngBounds(southWest, northEast));
+        } else{
+          region = RectangleRegion.fromSize(LatLng(lat!, lng!), width!, heigth!);
+        }
+      }
 
-  void getMap() {
-    print("MAP GET: \nLat: $lat  \nLng: $lng \nR: $rad");
-    var rig = CircleRegion(LatLng(lat, lng), rad);
-    List<LatLng> list = rig.toList();
-    List<Coords> coords = rectangleTiles({
-      //'circleOutline': list,
-      'bounds': LatLngBounds.fromPoints(list),
-      "minZoom": zoomMin,
-      "maxZoom": zoomMax,
-      "crs": const Epsg3857(),
-      "tileSize": CustomPoint(tileSize, tileSize)
-    });
-    print(coords.length);
-    coords.forEach((element) => _getAndSaveTile(
-            element,
+  bool get buildFromPoints => southWest != null && northEast != null;
+}
+
+class DownloadTileHalper {
+  final DownloadTileOptions options;
+
+  final TileLayerOptions _tileLayerOptions;
+
+  DownloadTileHalper(
+      {required this.options, TileLayerOptions? tileLayerOptions})
+      : _tileLayerOptions = tileLayerOptions ??
             TileLayerOptions(
-              urlTemplate: urlTemplate,
-              //subdomains: null
-              // urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              // subdomains: ['a', 'b', 'c'],
-            ),
-            http.Client(), (e, s) {
-          print(s);
-        }, "someName"));
+              urlTemplate:
+                  "http://127.0.0.1:8000/services/world/tiles/{z}/{x}/{y}.png",
+            );
+
+  void downloadMap() {
+    List<Coords> coords = _getCoordinats();
+    for (Coords element in coords) {
+      _getAndSaveTile(element, _tileLayerOptions, http.Client(), (e, s) {});
+    }
   }
 
+  List<TileInfo> get getTilesAddress => _getCoordinats().map<TileInfo>((element) {
+      List<String> address = _getTileUrl(element, _tileLayerOptions).split("/");
+      return TileInfo(
+          z: address[address.length - 3],
+          x: address[address.length - 2],
+          y: address[address.length - 1]);
+    }).toList();
+  
 
-  List<String> getTilesAddress(){
-    List<String> tiles = [];
-    print("MAP GET: \nLat: $lat  \nLng: $lng \nR: $rad");
-    var rig = CircleRegion(LatLng(lat, lng), rad);
-    List<LatLng> list = rig.toList();
-    List<Coords> coords = rectangleTiles({
-      //'circleOutline': list,
-      'bounds': LatLngBounds.fromPoints(list),
-      "minZoom": zoomMin,
-      "maxZoom": zoomMax,
+  List<String> get getTilesUrls => _getCoordinats().map<String>((element) {
+      return _getTileUrl(element, _tileLayerOptions);
+    }).toList();
+
+  List<Coords> _getCoordinats() {
+    late RectangleRegion region;
+    if (options.buildFromPoints) {
+      region = RectangleRegion(
+          LatLngBounds.fromPoints([options.southWest!, options.southWest!]));
+    } else {
+      region = RectangleRegion.fromSize(
+          LatLng(options.lat!, options.lng!), options.width!, options.heigth!);
+    }
+
+    return _rectangleTiles({
+      'bounds': region.bounds,
+      "minZoom": options.zoomMin,
+      "maxZoom": options.zoomMax,
       "crs": const Epsg3857(),
-      "tileSize": CustomPoint(tileSize, tileSize)
+      "tileSize": CustomPoint(options.tileSize, options.tileSize)
     });
-    print(coords.length);
-    coords.forEach((element) { 
-     String address = _getTileUrl(element, TileLayerOptions(  urlTemplate: urlTemplate,
-              //subdomains: null
-              // urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              // subdomains: ['a', 'b', 'c'],
-            ));
-            tiles.add(address);
-            
-            });
-      
-    return tiles;
   }
 
-
-  List<Coords<num>> rectangleTiles(Map<String, dynamic> input) {
+  List<Coords<num>> _rectangleTiles(Map<String, dynamic> input) {
     final LatLngBounds bounds = input['bounds'];
     final int minZoom = input['minZoom'];
     final int maxZoom = input['maxZoom'];
@@ -108,73 +137,19 @@ class DownloadTileHalper {
     return coords;
   }
 
-  static List<Coords<num>> _getCoords(Map<String, dynamic> input) {
-    final List<LatLng> circleOutline = input['circleOutline'];
-    final int minZoom = input['minZoom'];
-    final int maxZoom = input['maxZoom'];
-    final Crs crs = input['crs'];
-    final CustomPoint<num> tileSize = input['tileSize'];
-
-    final Map<int, Map<int, List<int>>> outlineTileNums = {};
-
-    final List<Coords<num>> coords = [];
-
-    for (int zoomLvl = minZoom; zoomLvl <= maxZoom; zoomLvl++) {
-      outlineTileNums[zoomLvl] = {};
-
-      for (LatLng node in circleOutline) {
-        final tile = crs
-            .latLngToPoint(node, zoomLvl.toDouble())
-            .unscaleBy(tileSize)
-            .floor();
-
-        outlineTileNums[zoomLvl]![tile.x.toInt()] ??= [
-          1000000000000,
-          -1000000000000
-        ];
-
-        outlineTileNums[zoomLvl]![tile.x.toInt()] = [
-          tile.y < outlineTileNums[zoomLvl]![tile.x.toInt()]![0]
-              ? tile.y.toInt()
-              : outlineTileNums[zoomLvl]![tile.x.toInt()]![0],
-          tile.y > outlineTileNums[zoomLvl]![tile.x.toInt()]![1]
-              ? tile.y.toInt()
-              : outlineTileNums[zoomLvl]![tile.x.toInt()]![1],
-        ];
-      }
-
-      for (int x in outlineTileNums[zoomLvl]!.keys) {
-        for (int y = outlineTileNums[zoomLvl]![x]![0];
-            y <= outlineTileNums[zoomLvl]![x]![1];
-            y++) {
-          coords
-              .add(Coords(x.toDouble(), y.toDouble())..z = zoomLvl.toDouble());
-        }
-      }
-    }
-
-    return coords;
+  String _getTileUrl(Coords<num> coord, TileLayerOptions options) {
+    final coordDouble = Coords(coord.x.toDouble(), coord.y.toDouble())
+      ..z = coord.z.toDouble();
+    return getTileUrl(coordDouble, options);
   }
 
-    String _getTileUrl(Coords<num> coord,   TileLayerOptions options)  {
-      final coordDouble = Coords(coord.x.toDouble(), coord.y.toDouble())
-        ..z = coord.z.toDouble();
-      return getTileUrl(coordDouble, options);
-  }
-
-  Future<void> _getAndSaveTile(
-      Coords<num> coord,
-      TileLayerOptions options,
-      http.Client client,
-      Function(String, dynamic) errorHandler,
-      String cacheName) async {
+  Future<void> _getAndSaveTile(Coords<num> coord, TileLayerOptions options,
+      http.Client client, Function(String, dynamic) errorHandler) async {
     String url = "";
     try {
-      print("COORD ${coord}");
       final coordDouble = Coords(coord.x.toDouble(), coord.y.toDouble())
         ..z = coord.z.toDouble();
       url = getTileUrl(coordDouble, options);
-      print(url);
       final bytes = (await client.get(Uri.parse(url))).bodyBytes;
 
       await saveTile(
@@ -237,202 +212,52 @@ class DownloadTileHalper {
       {String cacheName = 'mainCache'}) async {
     final directory = await getDownloadsDirectory();
     Uri u = Uri.parse(cacheName);
-    print(u.pathSegments);
     var l = u.pathSegments.length;
     String zoom = u.pathSegments[l - 3];
     String x = u.pathSegments[l - 2];
     String y = u.pathSegments[l - 1];
-    // Directory zoomDir = Directory("${directory!.path}\\_\\$zoom");
-    // zoomDir.exists().then((value) {
-    //   if (!value)
-    //     zoomDir.create().then((_) {
-    //       return;
-    //     });
-    // });
 
-    // Directory xDir = Directory("${directory.path}\\_\\$zoom\\$x");
-    // xDir.exists().then((value) {
-    //   if (!value)
-    //     xDir.create().then((_) {
-    //       return;
-    //     });
-    // });
-    Directory zoomDir = Directory("${directory!.path}\\_\\mainStore\\$zoom\\$x");
+    Directory zoomDir =
+        Directory("${directory!.path}\\_\\$zoom\\$x");
     await zoomDir.create(recursive: true);
 
-    File file = File("${directory.path}\\_\\mainStore\\$zoom\\$x\\$y");
+    File file = File("${directory.path}\\_\\$zoom\\$x\\$y");
     file.writeAsBytes(tile);
   }
 }
 
-class DownloadableRegion {
-  /// The shape that this region conforms to
-  final RegionType type;
+class RectangleRegion {
+  late LatLngBounds bounds;
 
-  /// The original `BaseRegion`, used internally for recovery purposes
-  final BaseRegion originalRegion;
+  RectangleRegion(this.bounds);
 
-  /// All the verticies on the outline of a polygon
-  final List<LatLng> points;
+  RectangleRegion.fromSize(LatLng centerPoint, double width, double height) {    
+    var lat1 = (centerPoint.latitude + (height / 2 / 6356) * (180 / pi)).clamp(-90.0, 90.0);
+    var long1 = (centerPoint.longitude + (width / 2 / 6356) * (180 / pi)/ 
+            math.cos(lat1 * pi / 180)).clamp(-180.0, 180.0);
+    
+    var lat2 = (centerPoint.latitude - (height / 2 / 6356) * (180 / pi)).clamp(-90.0, 90.0);
+    var long2 = (centerPoint.longitude -
+        (width / 2 / 6356) *
+            (180 / pi) /
+            math.cos(lat2 * pi / 180)).clamp(-180.0, 180.0);
 
-  /// The minimum zoom level to fetch tiles for
-  final int minZoom;
-
-  /// The maximum zoom level to fetch tiles for
-  final int maxZoom;
-
-  /// The options used to fetch tiles
-  final TileLayerOptions options;
-
-  /// The number of download threads allowed to run simultaneously
-  ///
-  /// This will significatly increase speed, at the expense of faster battery drain. Note that some servers may forbid multithreading, in which case this should be set to 1.
-  ///
-  /// Set to 1 to disable multithreading. Defaults to 10.
-  final int parallelThreads;
-
-  /// Whether to skip downloading tiles that already exist
-  ///
-  /// Defaults to `false`, so that existing tiles will be updated.
-  final bool preventRedownload;
-
-  /// Whether to remove tiles that are entirely sea
-  ///
-  /// The checks are conducted by comparing the bytes of the tile at x:0, y:0, and z:19 to the bytes of the currently downloading tile. If they match, the tile is deleted, otherwise the tile is kept.
-  ///
-  /// This option is therefore not supported when using satelite tiles (because of the variations from tile to tile), on maps where the tile 0/0/19 is not entirely sea, or on servers where zoom level 19 is not supported. If not supported, set this to `false` to avoid wasting unnecessary time and to avoid errors.
-  ///
-  /// This is a storage saving feature, not a time saving or data saving feature: tiles still have to be fully downloaded before they can be checked.
-  ///
-  /// Set to `false` to keep sea tiles, which is the default.
-  final bool seaTileRemoval;
-
-  /// The map projection to use to calculate tiles. Defaults to `Espg3857()`.
-  final Crs crs;
-
-  /// A function that takes any type of error as an argument to be called in the event a tile fetch fails
-  final Function(dynamic)? errorHandler;
-
-  /// Avoid construction using this method. Use [BaseRegion.toDownloadable] to generate [DownloadableRegion]s from other regions.
-  DownloadableRegion.internal(
-    this.points,
-    this.minZoom,
-    this.maxZoom,
-    this.options,
-    this.type,
-    this.originalRegion, {
-    this.parallelThreads = 10,
-    this.preventRedownload = false,
-    this.seaTileRemoval = false,
-    this.crs = const Epsg3857(),
-    this.errorHandler,
-  })  : assert(
-          minZoom <= maxZoom,
-          '`minZoom` should be less than or equal to `maxZoom`',
-        ),
-        assert(
-          parallelThreads >= 1,
-          '`parallelThreads` should be more than or equal to 1. Set to 1 to disable multithreading',
-        );
-}
-
-enum RegionType {
-  /// A region containing 2 points representing the top-left and bottom-right corners of a rectangle
-  rectangle,
-
-  /// A region containing all the points along it's outline (one every degree) representing a circle
-  circle,
-
-  /// A region with the border as the loci of a line at it's center representing multiple diagonal rectangles
-  line,
-}
-
-abstract class BaseRegion {
-  /// Create a downloadable region out of this region
-  ///
-  /// Returns a [DownloadableRegion] to be passed to the `StorageCachingTileProvider().downloadRegion()`, `StorageCachingTileProvider().downloadRegionBackground()`, or `StorageCachingTileProvider().checkRegion()` function.
-  DownloadableRegion toDownloadable(
-    int minZoom,
-    int maxZoom,
-    TileLayerOptions options, {
-    bool preventRedownload = false,
-    bool seaTileRemoval,
-    Crs crs = const Epsg3857(),
-    Function(dynamic)? errorHandler,
-  });
-
-  /// Create a list of all the `LatLng`s along the outline of this region
-  ///
-  /// Not supported on line regions: use `toOutlines()` instead.
-  ///
-  /// Returns a `List<LatLng>` which can be used anywhere.
-  List<LatLng> toList();
-}
-
-class CircleRegion extends BaseRegion {
-  /// The center of the circle as a `LatLng`
-  final LatLng center;
-
-  /// The radius of the circle as a `double` in km
-  final double radius;
-
-  /// Creates a circular region using a center point and a radius
-  CircleRegion(this.center, this.radius);
-
-  @override
-  DownloadableRegion toDownloadable(
-    int minZoom,
-    int maxZoom,
-    TileLayerOptions options, {
-    int parallelThreads = 10,
-    bool preventRedownload = false,
-    bool seaTileRemoval = false,
-    Crs crs = const Epsg3857(),
-    Function(dynamic)? errorHandler,
-  }) {
-    return DownloadableRegion.internal(
-      toList(),
-      minZoom,
-      maxZoom,
-      options,
-      RegionType.circle,
-      this,
-      parallelThreads: parallelThreads,
-      preventRedownload: preventRedownload,
-      seaTileRemoval: seaTileRemoval,
-      crs: crs,
-      errorHandler: errorHandler,
-    );
+    bounds = LatLngBounds.fromPoints([
+      LatLng(lat1, long1),
+      LatLng(lat2, long2),
+    ]);
   }
+}
+
+class TileInfo {
+  final String z;
+  final String x;
+  final String y;
+
+  TileInfo({required this.z, required this.x, required this.y});
 
   @override
-  List<LatLng> toList() {
-    final double rad = radius / 1.852 / 3437.670013352;
-    final double lat = center.latitudeInRad;
-    final double lon = center.longitudeInRad;
-    final List<LatLng> output = [];
-
-    for (int x = 0; x <= 360; x++) {
-      final double brng = x * math.pi / 180;
-      final double latRadians = math.asin(
-        math.sin(lat) * math.cos(rad) +
-            math.cos(lat) * math.sin(rad) * math.cos(brng),
-      );
-      final double lngRadians = lon +
-          math.atan2(
-            math.sin(brng) * math.sin(rad) * math.cos(lat),
-            math.cos(rad) - math.sin(lat) * math.sin(latRadians),
-          );
-
-      output.add(
-        LatLng(
-          latRadians * 180 / math.pi,
-          (lngRadians * 180 / math.pi)
-              .clamp(-180, 180), // Clamped to fix errors with flutter_map
-        ),
-      );
-    }
-
-    return output;
+  String toString() {
+    return "/$z/$x/$y";
   }
 }

@@ -32,9 +32,13 @@ class _HomePageState extends State<HomePage> {
   TextEditingController lngController = TextEditingController(text: "101.614");
   TextEditingController zoomMin = TextEditingController(text: "8");
   TextEditingController zoomMax = TextEditingController(text: "10");
-  TextEditingController radiusController = TextEditingController(text: "10");
+  TextEditingController widthController = TextEditingController(text: "10");
+  TextEditingController heigthController = TextEditingController(text: "10");
   List<int> zooms = [1, 2, 3, 4, 5];
   DownloadTileHalper? tiles;
+
+  List<String> urlsList = [];
+  List<TileInfo> tilesList = [];
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +54,12 @@ class _HomePageState extends State<HomePage> {
           decoration: const InputDecoration(label: Text("LNG")),
         ),
         TextField(
-          controller: radiusController,
-          decoration: const InputDecoration(label: Text("R")),
+          controller: widthController,
+          decoration: const InputDecoration(label: Text("Width")),
+        ),
+        TextField(
+          controller: heigthController,
+          decoration: const InputDecoration(label: Text("Heigth")),
         ),
         TextField(
           controller: zoomMin,
@@ -64,26 +72,38 @@ class _HomePageState extends State<HomePage> {
         ElevatedButton(
             onPressed: () {
               tiles = DownloadTileHalper(
-                  lat: double.parse(latController.text),
-                  lng: double.parse(lngController.text),
-                  rad: double.parse(radiusController.text),
-                  zoomMin: int.parse(zoomMin.text),
-                  zoomMax: int.parse(zoomMax.text)
+                  options: DownloadTileOptions(
+                      lat: double.parse(latController.text),
+                      lng: double.parse(lngController.text),
+                      width: double.parse(widthController.text),
+                      heigth: double.parse(heigthController.text),
+                      zoomMin: int.parse(zoomMin.text),
+                      zoomMax: int.parse(zoomMax.text)),
                   );
-              tiles!.getMap();
+              tiles!.downloadMap();
             },
             child: const Text("Download Tiles")),
         ElevatedButton(
             onPressed: () {
               tiles = DownloadTileHalper(
-                  lat: double.parse(latController.text),
-                  lng: double.parse(lngController.text),
-                  rad: double.parse(radiusController.text),
-                  zoomMin: int.parse(zoomMin.text),
-                  zoomMax: int.parse(zoomMax.text)
-                  );
-              List<String> list = tiles!.getTilesAddress();
-              print(list);
+                  options: DownloadTileOptions(
+                      lat: double.parse(latController.text),
+                      lng: double.parse(lngController.text),
+                      width: double.parse(widthController.text),
+                      heigth: double.parse(heigthController.text),
+                      zoomMin: int.parse(zoomMin.text),
+                      zoomMax: int.parse(zoomMax.text)),
+                      tileLayerOptions: TileLayerOptions(
+                                            urlTemplate:"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                                            subdomains: ['a', 'b', 'c'],
+                                            attributionBuilder: (_) {
+                                              return Text("© OpenStreetMap contributors");
+                                            })
+                        );
+              setState(() {
+                urlsList = tiles!.getTilesUrls;
+                tilesList = tiles!.getTilesAddress;
+              });
             },
             child: const Text("Get all tiles")),
         ElevatedButton(
@@ -91,7 +111,43 @@ class _HomePageState extends State<HomePage> {
               Navigator.of(context).push(
                   MaterialPageRoute(builder: (context) => const MapView()));
             },
-            child: const Text("Show map from download folder"))
+            child: const Text("Show map from download folder")),
+        Expanded(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    const Text("TILES"),
+                    Expanded(
+                        child: ListView(
+                      children: tilesList
+                          .map((element) => ListTile(
+                                title: Text(element.toString()),
+                              ))
+                          .toList(),
+                    ))
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    const Text("URLS"),
+                    Expanded(
+                        child: ListView(
+                      children: urlsList
+                          .map((element) => ListTile(
+                                title: Text(element.toString()),
+                              ))
+                          .toList(),
+                    ))
+                  ],
+                ),
+              ),
+            ],
+          ),
+        )
       ],
     ));
   }
@@ -112,7 +168,7 @@ class _MapViewState extends State<MapView> {
   void initState() {
     getDownloadsDirectory().then((value) {
       setState(() {
-        source = "${value!.path}\\_\\mainStore";
+        source = "${value!.path}\\_";
         print("SOURCE: $source");
       });
     });
@@ -165,8 +221,6 @@ class InternalTail extends TileProvider {
 class ExteralTail extends TileProvider {
   @override
   ImageProvider<Object> getImage(Coords<num> coords, TileLayerOptions options) {
-    print(options.urlTemplate);
     return NetworkImage(getTileUrl(coords, options));
-    //return ImageProvider ;
   }
 }
