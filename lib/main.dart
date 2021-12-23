@@ -1,11 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 import 'package:latlong2/latlong.dart';
 import 'package:maps/map.dart';
-import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(App());
 
@@ -96,7 +93,9 @@ class _HomePageState extends State<HomePage> {
             onPressed: () {
               tiles = DownloadTileHalper(
                   options: DownloadTileOptions(
-                      southWest: LatLng(56.09962, 101.506805),
+                      zoomMax: 10,
+                      zoomMin: 10,
+                      southWest: LatLng(20.09962, 101.506805),
                       northEast: LatLng(56.206704, 101.729279) 
                       ),
                       // tileLayerOptions: TileLayerOptions(
