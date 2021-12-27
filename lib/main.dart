@@ -78,7 +78,10 @@ class _HomePageState extends State<HomePage> {
                       width: double.parse(widthController.text),
                       heigth: double.parse(heigthController.text),
                       zoomMin: int.parse(zoomMin.text),
-                      zoomMax: int.parse(zoomMax.text)),
+                      zoomMax: int.parse(zoomMax.text),
+                      mapEmbedSize: MediaQuery.of(context).size,
+                      mapSizeRatio: MapSizeRatio(heightRatio: 1, widthRatio: 1.5),
+                      ),
                   );
               tiles!.downloadMap();
             },
@@ -117,7 +120,11 @@ class _HomePageState extends State<HomePage> {
               tiles = DownloadTileHalper(
                   options: DownloadTileOptions(
                       southWest: LatLng(56.09962, 101.506805),
-                      northEast: LatLng(56.206704, 101.729279) 
+                      northEast: LatLng(56.206704, 101.729279),
+                      mapEmbedSize: MediaQuery.of(context).size,
+                      mapSizeRatio: MapSizeRatio(heightRatio: 1, widthRatio: 1.5),
+                      zoomMax: 10,
+                      zoomMin: 1
                       ),
                       // tileLayerOptions: TileLayerOptions(
                       //                       urlTemplate:"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",

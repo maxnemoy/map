@@ -2,10 +2,10 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
-import 'package:location/location.dart';
 import 'package:path_provider/path_provider.dart';
 
 class DownloadTileOptions {
@@ -36,6 +36,9 @@ class DownloadTileOptions {
   /// North-East area point
   final LatLng? northEast;
 
+  final Size? mapEmbedSize;
+  final MapSizeRatio mapSizeRatio;
+
   late RectangleRegion region;
 
   DownloadTileOptions(
@@ -47,15 +50,26 @@ class DownloadTileOptions {
       this.zoomMax = 10,
       this.tileSize = 256,
       this.southWest,
-      this.northEast}){
-        if(lat == null && lng == null){
-          region = RectangleRegion(LatLngBounds(southWest, northEast));
-        } else{
-          region = RectangleRegion.fromSize(LatLng(lat!, lng!), width!, heigth!);
+      this.northEast,
+      this.mapEmbedSize,
+      MapSizeRatio? mapSizeRatio}) : mapSizeRatio = mapSizeRatio ?? MapSizeRatio() {
+        if (buildFromPoints) {
+            region = RectangleRegion(
+                LatLngBounds.fromPoints([southWest!, northEast!]));
+        } else {
+          region = RectangleRegion.fromSize(
+              LatLng(lat!, lng!), width!, heigth!);
         }
       }
 
   bool get buildFromPoints => southWest != null && northEast != null;
+}
+
+class MapSizeRatio{
+  final double widthRatio;
+  final double heightRatio;
+
+  MapSizeRatio({this.heightRatio = 1, this.widthRatio = 1});
 }
 
 class DownloadTileHalper {
@@ -91,27 +105,31 @@ class DownloadTileHalper {
       return _getTileUrl(element, _tileLayerOptions);
     }).toList();
 
-  List<Coords> _getCoordinats() {
-    late RectangleRegion region;
-    if (options.buildFromPoints) {
-      region = RectangleRegion(
-          LatLngBounds.fromPoints([options.southWest!, options.northEast!]));
-    } else {
-      region = RectangleRegion.fromSize(
-          LatLng(options.lat!, options.lng!), options.width!, options.heigth!);
-    }
-
-    return _rectangleTiles({
-      'bounds': region.bounds,
+  List<Coords> _getCoordinats() => _rectangleTiles({
+      'bounds': options.region.bounds,
       "minZoom": options.zoomMin,
       "maxZoom": options.zoomMax,
       "crs": const Epsg3857(),
       "tileSize": CustomPoint(options.tileSize, options.tileSize)
     });
+
+  LatLngBounds _embedMapInArea(double zoom){
+    final double halfScreenHeight = _calculateScreenHeightInDegrees(zoom) / options.mapSizeRatio.heightRatio;
+    final double halfScreenWidth = _calculateScreenWidthInDegrees(zoom) / options.mapSizeRatio.widthRatio;
+    final area = 
+      LatLngBounds(LatLng(
+        (options.region.bounds.southWest!.latitude + halfScreenHeight).clamp(-90, 90),
+        (options.region.bounds.southWest!.longitude + halfScreenWidth).clamp(-180, 180),
+      ),
+      LatLng(
+        (options.region.bounds.northEast!.latitude - halfScreenHeight).clamp(-90, 90),
+        (options.region.bounds.northEast!.longitude - halfScreenWidth).clamp(-180, 180),
+      ));
+    return area;
   }
 
   List<Coords<num>> _rectangleTiles(Map<String, dynamic> input) {
-    final LatLngBounds bounds = input['bounds'];
+    LatLngBounds bounds = input['bounds'];
     final int minZoom = input['minZoom'];
     final int maxZoom = input['maxZoom'];
     final Crs crs = input['crs'];
@@ -119,6 +137,9 @@ class DownloadTileHalper {
 
     final coords = <Coords<num>>[];
     for (int zoomLvl = minZoom; zoomLvl <= maxZoom; zoomLvl++) {
+      if(options.mapEmbedSize != null){
+        bounds = _embedMapInArea(zoomLvl.toDouble());
+      }
       final nwCustomPoint = crs
           .latLngToPoint(bounds.northWest, zoomLvl.toDouble())
           .unscaleBy(tileSize)
@@ -224,6 +245,14 @@ class DownloadTileHalper {
     File file = File("${directory.path}\\_\\$zoom\\$x\\$y");
     file.writeAsBytes(tile);
   }
+
+  double _calculateScreenWidthInDegrees(double zoom) {
+    final degreesPerPixel = 360 / math.pow(2, zoom + 8);
+    return options.mapEmbedSize!.width * degreesPerPixel;
+  }
+
+  double _calculateScreenHeightInDegrees(double zoom) =>
+      options.mapEmbedSize!.height * 170.102258 / math.pow(2, zoom + 8);
 }
 
 class RectangleRegion {
