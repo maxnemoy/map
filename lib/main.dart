@@ -75,7 +75,10 @@ class _HomePageState extends State<HomePage> {
                       width: double.parse(widthController.text),
                       heigth: double.parse(heigthController.text),
                       zoomMin: int.parse(zoomMin.text),
-                      zoomMax: int.parse(zoomMax.text)),
+                      zoomMax: int.parse(zoomMax.text),
+                      mapEmbedSize: MediaQuery.of(context).size,
+                      mapSizeRatio: MapSizeRatio(heightRatio: 1, widthRatio: 1.5),
+                      ),
                       tileLayerOptions: TileLayerOptions(
                                             urlTemplate:"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                                             subdomains: ['a', 'b', 'c'],
