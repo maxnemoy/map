@@ -95,7 +95,7 @@ class DownloadTileHalper {
     late RectangleRegion region;
     if (options.buildFromPoints) {
       region = RectangleRegion(
-          LatLngBounds.fromPoints([options.southWest!, options.southWest!]));
+          LatLngBounds.fromPoints([options.southWest!, options.northEast!]));
     } else {
       region = RectangleRegion.fromSize(
           LatLng(options.lat!, options.lng!), options.width!, options.heigth!);
