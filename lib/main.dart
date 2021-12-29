@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -217,17 +218,51 @@ class _MapViewState extends State<MapView> {
                 })
           ],
         ),
-        body: FlutterMap(
+        body: FlutterMap( 
             options: MapOptions(
               center: LatLng(56.1325, 101.614),
+              minZoom: 3,
+              maxZoom: 10,
+              zoom: 10,
+              swPanBoundary: LatLng(56.09962, 101.506805),
+              nePanBoundary: LatLng(56.206704, 101.729279)
             ),
             layers: [
               TileLayerOptions(
-                  urlTemplate: mapFromCache || source == null
+            tileSize: 512,
+            tileProvider: CustomTail(),
+            urlTemplate: mapFromCache || source == null
                       ? 'http://127.0.0.1:8000/services/world/tiles/{z}/{x}/{y}.png'
                       : source + "\\{z}\\{x}\\{y}.png",
-                  tileProvider: mapFromCache ? ExteralTail() : InternalTail())
-            ]));
+          ),
+          TileLayerOptions(
+            urlTemplate: mapFromCache || source == null
+                      ? 'http://127.0.0.1:8000/services/world/tiles/{z}/{x}/{y}.png'
+                      : source + "\\{z}\\{x}\\{y}.png",
+            tileProvider: CustomTail(),
+            backgroundColor: Colors.transparent,
+          ) ]));
+  }
+}
+
+class CustomTail extends TileProvider {
+   @override
+  ImageProvider<Object> getImage(
+      Coords<num> coords, TileLayerOptions options) {
+    if (File(getTileUrl(coords, options)).existsSync()) {
+      return FileImage(File(getTileUrl(coords, options)));
+    } else {
+      for(int i = options.maxZoom.toInt(); i > options.minZoom.toInt(); i--){
+        var newCoord = Coords(coords.x, coords.y)..z = i;
+        if (File(getTileUrl(newCoord, options)).existsSync()){
+          return FileImage(File(getTileUrl(newCoord, options)));
+        }
+      }
+      var blankBytes = const Base64Codec().decode(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+
+      return Image.memory(blankBytes).image;
+    }
   }
 }
 
